@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Defender - Username & Growth Update</title>
+    <title>Neon Defender - Audio Update</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -32,10 +32,15 @@
         <div class="text-sm font-semibold text-purple-400">Level: <span id="levelEl">1</span></div>
     </div>
 
-    <!-- Tombol Shop -->
-    <button id="openShopBtn" class="fixed top-4 right-6 z-10 bg-gray-800/80 p-3 rounded-full hover:bg-gray-700 transition-all border border-white/20">
-        🛒 Toko Skin
-    </button>
+    <!-- Tombol Audio & Shop -->
+    <div class="fixed top-4 right-6 z-10 flex gap-2">
+        <button id="muteBtn" class="bg-gray-800/80 p-3 rounded-full hover:bg-gray-700 transition-all border border-white/20">
+            🔊
+        </button>
+        <button id="openShopBtn" class="bg-gray-800/80 p-3 rounded-full hover:bg-gray-700 transition-all border border-white/20">
+            🛒 Toko Skin
+        </button>
+    </div>
 
     <!-- Modal Shop -->
     <div id="shopModal" class="fixed inset-0 flex items-center justify-center bg-black/90 hidden z-30 p-4">
@@ -103,7 +108,7 @@
             <!-- Input Username -->
             <div id="loginSection" class="mb-6">
                 <p class="text-gray-400 mb-4 text-sm">Masukkan nama pilot kamu:</p>
-                <input type="text" id="usernameInput" maxlength="12" placeholder="Nama Kamu..." class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-center text-white focus:outline-none focus:border-blue-500 transition-all">
+                <input type="text" id="usernameInput" maxlength="12" placeholder="Nama Kamu..." class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-center text-white focus:outline-none focus:border-blue-500 transition-all text-sm md:text-base">
             </div>
 
             <div id="statsBox" class="hidden mb-8 space-y-2">
@@ -120,6 +125,55 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        // --- Sound Engine (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let isMuted = false;
+        let bgmOscillator = null;
+
+        function playSound(freq, type, duration, volume = 0.1) {
+            if (isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playShootSound() {
+            playSound(800, 'square', 0.1, 0.05);
+        }
+
+        function playExplosionSound() {
+            playSound(150, 'sawtooth', 0.3, 0.1);
+        }
+
+        function playBuySound() {
+            if (isMuted) return;
+            const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+            notes.forEach((freq, i) => {
+                setTimeout(() => playSound(freq, 'sine', 0.2, 0.05), i * 100);
+            });
+        }
+
+        function startBGM() {
+            if (bgmOscillator) return;
+            // Simple looping bassline
+            const playNote = () => {
+                if (isMuted || !bgmOscillator) return;
+                const now = audioCtx.currentTime;
+                const freq = [110, 130, 146, 110][Math.floor(now) % 4]; // A2, C3, D3 loop
+                playSound(freq, 'sine', 0.5, 0.02);
+            };
+            bgmOscillator = setInterval(playNote, 500);
+        }
+
+        // --- Game Setup ---
         const canvas = document.getElementById('gameCanvas');
         const c = canvas.getContext('2d');
         canvas.width = window.innerWidth;
@@ -136,6 +190,7 @@
         const shopModal = document.getElementById('shopModal');
         const openShopBtn = document.getElementById('openShopBtn');
         const closeShopBtn = document.getElementById('closeShopBtn');
+        const muteBtn = document.getElementById('muteBtn');
         const finalScoreEl = document.getElementById('finalScoreEl');
         const finalLevelEl = document.getElementById('finalLevelEl');
 
@@ -159,14 +214,12 @@
             constructor(x, y, radius, color, name) {
                 this.x = x;
                 this.y = y;
-                this.baseRadius = 15;
                 this.radius = radius;
                 this.color = color;
                 this.name = name;
                 this.velocity = { x: 0, y: 0 };
             }
             draw() {
-                // Gambar Karakter
                 c.beginPath();
                 c.arc(canvas.width/2, canvas.height/2, this.radius, 0, Math.PI * 2);
                 c.fillStyle = this.color;
@@ -174,7 +227,6 @@
                 c.shadowColor = this.color;
                 c.shadowBlur = 20;
 
-                // Gambar Username di atas kepala
                 c.shadowBlur = 0;
                 c.fillStyle = 'white';
                 c.font = 'bold 14px Segoe UI';
@@ -189,10 +241,7 @@
                 this.draw();
             }
             grow() {
-                // Membesar maksimal hingga 3x lipat
-                if(this.radius < 45) {
-                    this.radius += 0.5;
-                }
+                if(this.radius < 45) this.radius += 0.5;
             }
         }
 
@@ -290,6 +339,9 @@
         }
 
         function init() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            startBGM();
+
             username = usernameInput.value.trim() || "Pilot";
             player = new Player(0, 0, 15, playerColor, username);
             projectiles = [];
@@ -309,12 +361,10 @@
             spawnTimeout = setTimeout(() => {
                 const radius = Math.random() * 20 + 10;
                 let x, y;
-
                 const angleSpawn = Math.random() * Math.PI * 2;
                 const distance = Math.max(canvas.width, canvas.height) * 0.8;
                 x = player.x + Math.cos(angleSpawn) * distance;
                 y = player.y + Math.sin(angleSpawn) * distance;
-
                 const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
                 const angleMove = Math.atan2(player.y - y, player.x - x);
                 const speed = (Math.random() * 2 + 1) * (1 + level * 0.1);
@@ -323,7 +373,6 @@
                     x: Math.cos(angleMove) * speed,
                     y: Math.sin(angleMove) * speed
                 }));
-
                 spawnEnemies();
             }, Math.max(400, 1500 - level * 150));
         }
@@ -353,7 +402,6 @@
 
             enemies.forEach((enemy, i) => {
                 enemy.update();
-
                 const distPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
                 if(distPlayer - enemy.radius - player.radius < 1) {
                     gameOver();
@@ -362,27 +410,25 @@
                 projectiles.forEach((proj, pi) => {
                     const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
                     if(dist - enemy.radius - proj.radius < 1) {
+                        playExplosionSound();
                         for(let k=0; k<8; k++) {
                             particles.push(new Particle(enemy.x, enemy.y, 2, enemy.color, {
                                 x: (Math.random() - 0.5) * 5,
                                 y: (Math.random() - 0.5) * 5
                             }));
                         }
-
                         if(enemy.radius > 15) {
                             enemy.radius -= 8;
                             score += 50;
                         } else {
-                            const reward = Math.floor(Math.random() * 15) + 5;
-                            totalGold += reward;
+                            totalGold += Math.floor(Math.random() * 15) + 5;
                             updateGoldUI();
                             score += 200;
                             enemies.splice(i, 1);
-                            player.grow(); // KARAKTER MEMBESAR SETIAP KILL
+                            player.grow();
                         }
                         projectiles.splice(pi, 1);
                         scoreEl.innerText = score;
-                        
                         if(score > level * 2000) {
                             level++;
                             levelEl.innerText = level;
@@ -395,21 +441,23 @@
         function gameOver() {
             cancelAnimationFrame(animationId);
             clearTimeout(spawnTimeout);
+            playExplosionSound();
             modalEl.classList.remove('hidden');
-            loginSection.classList.add('hidden'); // Sembunyikan input nama setelah login sekali
+            loginSection.classList.add('hidden');
             document.getElementById('statsBox').classList.remove('hidden');
             finalScoreEl.innerText = score;
             finalLevelEl.innerText = `Level: ${level}`;
             startGameBtn.innerText = "Main Lagi";
         }
 
+        // Controls
         const keys = { w:false, a:false, s:false, d:false };
         window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; updateVel(); });
         window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; updateVel(); });
 
         function updateVel() {
             if(!player) return;
-            player.velocity.x = 0; player.velocity.y = 0;
+            player.velocity = {x:0, y:0};
             const s = 4;
             if(keys.w) player.velocity.y = -s;
             if(keys.s) player.velocity.y = s;
@@ -419,7 +467,8 @@
 
         window.addEventListener('mousedown', e => {
             if(!player || !modalEl.classList.contains('hidden')) return;
-            if(e.target === openShopBtn) return;
+            if(e.target.closest('button')) return;
+            playShootSound();
             const angle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
             projectiles.push(new Projectile(player.x, player.y, 4, 'white', {
                 x: Math.cos(angle) * 12,
@@ -427,6 +476,7 @@
             }));
         });
 
+        // Joystick
         const isTouch = 'ontouchstart' in window;
         const joystickZone = document.getElementById('joystick-zone');
         const knob = document.getElementById('joystick-knob');
@@ -436,13 +486,10 @@
             e.preventDefault();
             const touch = e.touches[0];
             const rect = joystickZone.getBoundingClientRect();
-            const centerX = rect.left + rect.width/2;
-            const centerY = rect.top + rect.height/2;
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
+            const dx = touch.clientX - (rect.left + rect.width/2);
+            const dy = touch.clientY - (rect.top + rect.height/2);
             const dist = Math.min(Math.hypot(dx, dy), 40);
             const angle = Math.atan2(dy, dx);
-            
             knob.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
             player.velocity.x = Math.cos(angle) * 4 * (dist/40);
             player.velocity.y = Math.sin(angle) * 4 * (dist/40);
@@ -453,18 +500,25 @@
             if(player) player.velocity = {x:0, y:0};
         });
 
+        // UI Listeners
         openShopBtn.onclick = () => shopModal.classList.remove('hidden');
         closeShopBtn.onclick = () => shopModal.classList.add('hidden');
+        
+        muteBtn.onclick = () => {
+            isMuted = !isMuted;
+            muteBtn.innerText = isMuted ? "🔇" : "🔊";
+            if (!isMuted && audioCtx.state === 'suspended') audioCtx.resume();
+        };
 
         document.querySelectorAll('.skin-btn').forEach(btn => {
             btn.onclick = () => {
                 const skin = btn.dataset.skin;
                 const price = parseInt(btn.dataset.price);
-
                 if (ownedSkins.includes(skin)) {
                     playerColor = skin;
                     if(player) player.color = skin;
                     alertSkin("Skin Digunakan!");
+                    playBuySound();
                 } else if (totalGold >= price) {
                     totalGold -= price;
                     ownedSkins.push(skin);
@@ -474,6 +528,7 @@
                     btn.classList.replace('bg-blue-600', 'bg-green-600');
                     updateGoldUI();
                     alertSkin("Pembelian Berhasil!");
+                    playBuySound();
                 } else {
                     alertSkin("Gold tidak cukup!");
                 }
