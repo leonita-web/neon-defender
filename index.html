@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Defender Ultra - BGM Edition</title>
+    <title>Neon Defender Ultra - Mobile Support</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
@@ -12,9 +12,10 @@
             margin: 0;
             overflow: hidden;
             background-color: #020205;
-            touch-action: none;
+            touch-action: none; /* Penting untuk mobile */
             font-family: 'Rajdhani', sans-serif;
             color: white;
+            user-select: none;
         }
         canvas { display: block; }
         
@@ -24,26 +25,29 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .safe-text-container {
-            display: inline-block;
-            padding: 5px 15px;
-            overflow: visible;
-        }
-
         .safe-italic {
             font-family: 'Orbitron', sans-serif;
             font-style: italic;
             display: inline-block;
-            overflow: visible !important;
-            line-height: 1.2;
         }
 
         .neon-glow {
-            text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 20px rgba(56, 189, 248, 0.4);
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
         }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.5); border-radius: 10px; }
+        /* Indikator Kontrol Mobile (Opsional/Visual) */
+        .mobile-hint {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            pointer-events: none;
+            opacity: 0.4;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
     </style>
 </head>
 <body>
@@ -52,10 +56,8 @@
     <div class="fixed top-0 left-0 w-full p-4 flex justify-between items-start z-10 pointer-events-none">
         <div class="flex flex-col gap-2">
             <div class="glass-panel px-4 py-2 rounded-2xl pointer-events-auto border-l-4 border-l-blue-500">
-                <span class="text-[9px] uppercase tracking-tighter text-blue-400 font-bold block mb-1">Tactical Score</span>
-                <div class="safe-text-container">
-                    <span id="scoreEl" class="text-xl safe-italic font-black text-white">0</span>
-                </div>
+                <span class="text-[9px] uppercase text-blue-400 font-bold block mb-1">Score</span>
+                <span id="scoreEl" class="text-xl safe-italic font-black text-white">0</span>
             </div>
             <div class="glass-panel px-3 py-1 rounded-full flex items-center gap-2 pointer-events-auto w-fit">
                 <span class="text-yellow-400 text-xs">🪙</span>
@@ -64,65 +66,51 @@
         </div>
 
         <div class="flex gap-2 pointer-events-auto">
-            <button id="muteBtn" class="glass-panel w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-all text-sm border border-white/10">
-                🔊
-            </button>
-            <button id="openShopBtn" class="glass-panel px-5 h-10 flex items-center gap-2 rounded-full font-bold hover:bg-blue-600/30 transition-all text-xs border border-white/10 active:scale-95">
-                <span>🛒</span> <span class="safe-italic uppercase">Hangar</span>
+            <button id="muteBtn" class="glass-panel w-10 h-10 flex items-center justify-center rounded-full border border-white/10">🔊</button>
+            <button id="openShopBtn" class="glass-panel px-5 h-10 flex items-center gap-2 rounded-full font-bold border border-white/10">
+                🛒 <span class="safe-italic">HANGAR</span>
             </button>
         </div>
     </div>
 
-    <!-- Shop/Hangar Modal -->
+    <!-- Mobile Hint -->
+    <div class="mobile-hint md:hidden">
+        <div>← Gerak (Joystick Kiri)</div>
+        <div>Tembak (Tap Kanan) →</div>
+    </div>
+
+    <!-- Modals -->
     <div id="shopModal" class="fixed inset-0 flex items-center justify-center bg-black/90 hidden z-30 p-4 backdrop-blur-xl">
         <div class="glass-panel w-full max-w-md rounded-[40px] p-8 border-blue-500/30 shadow-2xl">
             <div class="flex justify-between items-center mb-8">
-                <div class="safe-text-container">
-                    <h2 class="text-2xl font-black safe-italic text-blue-400 uppercase">Hangar Ops</h2>
-                    <p class="text-gray-400 text-[10px] tracking-widest">Upgrade your starship</p>
-                </div>
-                <button id="closeShopBtn" class="w-10 h-10 flex items-center justify-center bg-white/5 rounded-full hover:bg-red-500/20 transition-all">&times;</button>
+                <h2 class="text-2xl font-black safe-italic text-blue-400">HANGAR</h2>
+                <button id="closeShopBtn" class="w-10 h-10 bg-white/5 rounded-full">&times;</button>
             </div>
-            
-            <div class="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div class="flex items-center justify-between p-4 bg-white/5 rounded-3xl border border-white/5">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-400 font-bold">I</div>
-                        <div>
-                            <p class="font-bold text-sm safe-italic">Rapid Fire</p>
-                            <p class="text-[9px] text-gray-500">Increase fire rate by 10%</p>
-                        </div>
-                    </div>
-                    <button class="bg-blue-600/20 text-blue-400 px-4 py-2 rounded-xl text-[10px] font-black border border-blue-600/40">500 🪙</button>
+            <div class="space-y-4">
+                <div class="p-4 bg-white/5 rounded-3xl flex justify-between items-center border border-white/5">
+                    <span class="font-bold">Rapid Fire Upgrade</span>
+                    <button class="bg-blue-600/20 text-blue-400 px-4 py-2 rounded-xl text-xs">500 🪙</button>
                 </div>
             </div>
-
-            <div class="mt-8 pt-6 border-t border-white/10 flex justify-between items-center">
-                <span class="text-gray-500 text-[10px] uppercase font-bold tracking-widest">Current Balance</span>
-                <span class="text-xl font-black text-yellow-400 safe-italic">🪙 <span id="shopGoldDisplay">0</span></span>
+            <div class="mt-8 text-center">
+                <span class="text-yellow-400 font-bold">Gold: <span id="shopGoldDisplay">0</span></span>
             </div>
         </div>
     </div>
 
-    <!-- Main Launcher -->
     <div id="modalEl" class="fixed inset-0 flex items-center justify-center bg-black/80 z-20 backdrop-blur-md">
         <div class="glass-panel p-10 rounded-[50px] text-center max-w-sm w-full mx-4 border-blue-500/30">
-            <div class="mb-8 safe-text-container">
-                <h1 class="text-3xl font-black safe-italic text-white">NEON <span class="text-blue-500">DEFENDER</span></h1>
-                <p class="text-blue-400/50 text-[10px] tracking-[0.3em] uppercase mt-2">8-BIT AUDIO ENGINE</p>
-            </div>
+            <h1 class="text-3xl font-black safe-italic text-white mb-2">NEON <span class="text-blue-500">DEFENDER</span></h1>
+            <p class="text-blue-400/50 text-[10px] tracking-[0.3em] uppercase mb-8">Mobile Optimized</p>
             
             <div id="statsBox" class="hidden mb-8 py-6 bg-white/5 rounded-[30px]">
-                <p class="text-gray-400 text-[10px] uppercase tracking-widest mb-2">Operation Result</p>
-                <div class="safe-text-container">
-                    <p class="text-5xl font-black safe-italic text-white neon-glow" id="finalScoreEl">0</p>
-                </div>
+                <p class="text-gray-400 text-xs mb-2">SCORE</p>
+                <p class="text-5xl font-black safe-italic text-white neon-glow" id="finalScoreEl">0</p>
             </div>
             
-            <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-[25px] w-full transition-all text-xs tracking-[0.3em] shadow-xl shadow-blue-900/40 active:scale-95">
-                LAUNCH MISSION
+            <button id="startGameBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-5 rounded-[25px] w-full tracking-[0.3em]">
+                START MISSION
             </button>
-            <p class="text-gray-500 text-[9px] mt-6 uppercase tracking-widest">WASD: MOVE • LEFT CLICK: FIRE</p>
         </div>
     </div>
 
@@ -147,9 +135,13 @@
         let player, projectiles, enemies, particles, stars;
         let score = 0, totalGold = 0, animationId, spawnTimeout;
         let isFiring = false;
-        let mouseX = 0, mouseY = 0;
         let lastFireTime = 0;
         const FIRE_RATE = 100;
+
+        // Mobile State
+        let touchMove = { x: 0, y: 0, active: false };
+        let touchAim = { x: 0, y: 0, active: false };
+        let joystickPos = { x: 0, y: 0 };
 
         // Audio System
         let audioCtx, masterGain, bgmNode, isMuted = false;
@@ -164,44 +156,26 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        // Generator BGM 8-bit prosedural
         function startBGM() {
             if (bgmNode) bgmNode.stop();
-            
             const tempo = 140; 
             const noteLength = 60 / tempo / 2;
-            const sequence = [
-                261, 261, 329, 392, 261, 329, 392, 440,
-                349, 349, 440, 523, 349, 440, 523, 587,
-                392, 392, 493, 587, 392, 493, 587, 659,
-                261, 261, 329, 392, 261, 329, 392, 329
-            ];
-
+            const sequence = [261, 329, 392, 440, 349, 440, 523, 587];
             let time = audioCtx.currentTime;
-            
-            function scheduleNotes() {
-                sequence.forEach((freq, i) => {
-                    const osc = audioCtx.createOscillator();
-                    const g = audioCtx.createGain();
-                    osc.type = 'square'; // Karakteristik suara 8-bit
-                    osc.frequency.setValueAtTime(freq, time + (i * noteLength));
-                    osc.frequency.exponentialRampToValueAtTime(freq * 0.9, time + (i * noteLength) + noteLength);
-                    
-                    g.gain.setValueAtTime(0.05, time + (i * noteLength));
-                    g.gain.exponentialRampToValueAtTime(0.001, time + (i * noteLength) + noteLength);
-                    
-                    osc.connect(g);
-                    g.connect(masterGain);
-                    osc.start(time + (i * noteLength));
-                    osc.stop(time + (i * noteLength) + noteLength);
-                    
-                    if (i === sequence.length - 1) {
-                        bgmNode = osc;
-                        osc.onended = () => { if(!modalEl.classList.contains('hidden')) return; startBGM(); };
-                    }
-                });
-            }
-            scheduleNotes();
+            sequence.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, time + (i * noteLength));
+                g.gain.setValueAtTime(0.05, time + (i * noteLength));
+                g.gain.exponentialRampToValueAtTime(0.001, time + (i * noteLength) + noteLength);
+                osc.connect(g); g.connect(masterGain);
+                osc.start(time + (i * noteLength)); osc.stop(time + (i * noteLength) + noteLength);
+                if (i === sequence.length - 1) {
+                    bgmNode = osc;
+                    osc.onended = () => { if(!modalEl.classList.contains('hidden')) startBGM(); };
+                }
+            });
         }
 
         function playSfx(freq, type, duration, vol) {
@@ -210,13 +184,10 @@
             const g = audioCtx.createGain();
             osc.type = type;
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
             g.gain.setValueAtTime(vol, audioCtx.currentTime);
             g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-            osc.connect(g);
-            g.connect(masterGain);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
+            osc.connect(g); g.connect(masterGain);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
         }
 
         const camera = { x: 0, y: 0 };
@@ -235,9 +206,8 @@
                 c.save();
                 c.translate(canvas.width / 2, canvas.height / 2);
                 c.rotate(this.rotation + Math.PI / 2);
-                c.shadowBlur = 20;
+                c.shadowBlur = 15;
                 c.shadowColor = this.color;
-                
                 c.beginPath();
                 c.moveTo(0, -this.radius * 1.5);
                 c.lineTo(-this.radius, this.radius);
@@ -249,17 +219,33 @@
                 c.restore();
             }
             update() {
+                // Keyboard Move
                 if (keys.w) this.velocity.y -= this.accel;
                 if (keys.s) this.velocity.y += this.accel;
                 if (keys.a) this.velocity.x -= this.accel;
                 if (keys.d) this.velocity.x += this.accel;
+
+                // Mobile Move (Joystick)
+                if (touchMove.active) {
+                    this.velocity.x += touchMove.x * this.accel;
+                    this.velocity.y += touchMove.y * this.accel;
+                }
 
                 this.velocity.x *= this.friction;
                 this.velocity.y *= this.friction;
                 this.x += this.velocity.x;
                 this.y += this.velocity.y;
 
-                this.rotation = Math.atan2(mouseY - canvas.height/2, mouseX - canvas.width/2);
+                // Rotation Logic
+                if (touchAim.active) {
+                    this.rotation = Math.atan2(touchAim.y - canvas.height/2, touchAim.x - canvas.width/2);
+                } else if (touchMove.active) {
+                    this.rotation = Math.atan2(touchMove.y, touchMove.x);
+                } else if (!window.matchMedia("(pointer: coarse)").matches) {
+                    // PC Mouse rotation
+                    this.rotation = Math.atan2(touchAim.y - canvas.height/2, touchAim.x - canvas.width/2);
+                }
+
                 this.draw();
             }
         }
@@ -289,19 +275,16 @@
                 this.x = x; this.y = y; this.radius = radius;
                 this.color = color; this.speed = speed;
             }
-            draw() {
+            update() {
+                const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
                 const sx = this.x - camera.x;
                 const sy = this.y - camera.y;
                 c.beginPath();
                 c.arc(sx, sy, this.radius, 0, Math.PI * 2);
                 c.fillStyle = this.color;
                 c.fill();
-            }
-            update() {
-                const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                this.x += Math.cos(angle) * this.speed;
-                this.y += Math.sin(angle) * this.speed;
-                this.draw();
             }
         }
 
@@ -315,12 +298,10 @@
                 this.x += this.velocity.x;
                 this.y += this.velocity.y;
                 this.alpha -= 0.02;
-                const sx = this.x - camera.x;
-                const sy = this.y - camera.y;
                 c.save();
                 c.globalAlpha = this.alpha;
                 c.beginPath();
-                c.arc(sx, sy, this.radius, 0, Math.PI * 2);
+                c.arc(this.x - camera.x, this.y - camera.y, this.radius, 0, Math.PI * 2);
                 c.fillStyle = this.color;
                 c.fill();
                 c.restore();
@@ -329,12 +310,12 @@
 
         function createStars() {
             stars = [];
-            for (let i = 0; i < 200; i++) {
+            for (let i = 0; i < 150; i++) {
                 stars.push({
                     x: Math.random() * canvas.width * 2 - canvas.width,
                     y: Math.random() * canvas.height * 2 - canvas.height,
-                    size: Math.random() * 1.5,
-                    factor: Math.random() * 0.5
+                    size: Math.random() * 1.2,
+                    factor: Math.random() * 0.4
                 });
             }
         }
@@ -343,17 +324,16 @@
             stars.forEach(s => {
                 let sx = (s.x - camera.x * s.factor) % canvas.width;
                 let sy = (s.y - camera.y * s.factor) % canvas.height;
-                if (sx < 0) sx += canvas.width;
-                if (sy < 0) sy += canvas.height;
+                if (sx < 0) sx += canvas.width; if (sy < 0) sy += canvas.height;
                 c.beginPath();
                 c.arc(sx, sy, s.size, 0, Math.PI * 2);
-                c.fillStyle = `rgba(255, 255, 255, ${0.3 + s.factor})`;
+                c.fillStyle = `rgba(255, 255, 255, ${0.2 + s.factor})`;
                 c.fill();
             });
         }
 
         function init() {
-            player = new Player(0, 0, 15, '#38bdf8');
+            player = new Player(0, 0, 14, '#38bdf8');
             projectiles = []; enemies = []; particles = [];
             score = 0; scoreEl.innerText = score;
             createStars();
@@ -363,11 +343,11 @@
         function spawnEnemies() {
             spawnTimeout = setTimeout(() => {
                 const angle = Math.random() * Math.PI * 2;
-                const x = player.x + Math.cos(angle) * 800;
-                const y = player.y + Math.sin(angle) * 800;
-                enemies.push(new Enemy(x, y, 12, `hsl(${Math.random() * 360}, 70%, 50%)`, 2));
+                const x = player.x + Math.cos(angle) * 900;
+                const y = player.y + Math.sin(angle) * 900;
+                enemies.push(new Enemy(x, y, 10 + Math.random() * 5, `hsl(${Math.random() * 360}, 60%, 50%)`, 2));
                 spawnEnemies();
-            }, 1000);
+            }, 1200);
         }
 
         function animate() {
@@ -381,14 +361,20 @@
 
             player.update();
 
+            // Fire Logic (Rapid)
             if (isFiring) {
                 const now = Date.now();
                 if (now - lastFireTime > FIRE_RATE) {
-                    const angle = Math.atan2(mouseY - canvas.height/2, mouseX - canvas.width/2);
+                    let angle;
+                    if (touchAim.active) {
+                        angle = Math.atan2(touchAim.y - canvas.height/2, touchAim.x - canvas.width/2);
+                    } else {
+                        angle = player.rotation;
+                    }
                     projectiles.push(new Projectile(player.x, player.y, 3, '#fff', {
-                        x: Math.cos(angle) * 15, y: Math.sin(angle) * 15
+                        x: Math.cos(angle) * 16, y: Math.sin(angle) * 16
                     }));
-                    playSfx(800, 'square', 0.1, 0.05);
+                    playSfx(700, 'square', 0.1, 0.04);
                     lastFireTime = now;
                 }
             }
@@ -399,8 +385,7 @@
             });
 
             particles.forEach((p, i) => {
-                if (p.alpha <= 0) particles.splice(i, 1);
-                else p.update();
+                if (p.alpha <= 0) particles.splice(i, 1); else p.update();
             });
 
             enemies.forEach((enemy, ei) => {
@@ -412,11 +397,10 @@
                     document.getElementById('statsBox').classList.remove('hidden');
                     document.getElementById('finalScoreEl').innerText = score;
                     playSfx(100, 'sawtooth', 0.5, 0.2);
-                    isFiring = false;
                 }
                 projectiles.forEach((proj, pi) => {
                     if (Math.hypot(proj.x - enemy.x, proj.y - enemy.y) < proj.radius + enemy.radius) {
-                        for (let i = 0; i < 10; i++) {
+                        for (let i = 0; i < 8; i++) {
                             particles.push(new Particle(enemy.x, enemy.y, 2, enemy.color, {
                                 x: (Math.random() - 0.5) * 6, y: (Math.random() - 0.5) * 6
                             }));
@@ -428,35 +412,92 @@
                     }
                 });
             });
+
+            // Draw Virtual Joystick (Visual only if touching)
+            if (touchMove.active) {
+                c.beginPath();
+                c.arc(joystickPos.x, joystickPos.y, 40, 0, Math.PI * 2);
+                c.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+                c.stroke();
+                c.beginPath();
+                c.arc(joystickPos.x + touchMove.x * 30, joystickPos.y + touchMove.y * 30, 20, 0, Math.PI * 2);
+                c.fillStyle = 'rgba(56, 189, 248, 0.5)';
+                c.fill();
+            }
         }
 
-        // Event Listeners
+        // TOUCH HANDLERS (MOBILE)
+        window.addEventListener('touchstart', e => {
+            if (modalEl.classList.contains('hidden') && shopModal.classList.contains('hidden')) {
+                for (let i = 0; i < e.touches.length; i++) {
+                    const t = e.touches[i];
+                    if (t.clientX < canvas.width / 2) {
+                        // Kiri: Gerak
+                        touchMove.active = true;
+                        joystickPos = { x: t.clientX, y: t.clientY };
+                    } else {
+                        // Kanan: Tembak
+                        touchAim.active = true;
+                        touchAim.x = t.clientX;
+                        touchAim.y = t.clientY;
+                        isFiring = true;
+                    }
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (let i = 0; i < e.touches.length; i++) {
+                const t = e.touches[i];
+                if (t.clientX < canvas.width / 2) {
+                    const dx = t.clientX - joystickPos.x;
+                    const dy = t.clientY - joystickPos.y;
+                    const dist = Math.hypot(dx, dy);
+                    const max = 50;
+                    touchMove.x = dx / (dist > max ? dist : max);
+                    touchMove.y = dy / (dist > max ? dist : max);
+                } else {
+                    touchAim.x = t.clientX;
+                    touchAim.y = t.clientY;
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', e => {
+            if (e.touches.length === 0) {
+                touchMove.active = false;
+                touchMove.x = 0; touchMove.y = 0;
+                touchAim.active = false;
+                isFiring = false;
+            } else {
+                // Periksa sentuhan mana yang hilang
+                let hasLeft = false, hasRight = false;
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].clientX < canvas.width/2) hasLeft = true;
+                    else hasRight = true;
+                }
+                if (!hasLeft) { touchMove.active = false; touchMove.x = 0; touchMove.y = 0; }
+                if (!hasRight) { touchAim.active = false; isFiring = false; }
+            }
+        });
+
+        // DESKTOP HANDLERS (MOUSE/KEYBOARD)
         window.addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = true; });
         window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (keys.hasOwnProperty(k)) keys[k] = false; });
-        window.addEventListener('mousedown', () => { if (modalEl.classList.contains('hidden') && shopModal.classList.contains('hidden')) isFiring = true; });
+        window.addEventListener('mousedown', (e) => { 
+            if (modalEl.classList.contains('hidden') && shopModal.classList.contains('hidden')) {
+                isFiring = true; 
+                touchAim.x = e.clientX; touchAim.y = e.clientY;
+            }
+        });
         window.addEventListener('mouseup', () => isFiring = false);
-        window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+        window.addEventListener('mousemove', (e) => { touchAim.x = e.clientX; touchAim.y = e.clientY; });
 
-        startGameBtn.onclick = () => { 
-            initAudio();
-            modalEl.classList.add('hidden'); 
-            init(); 
-            animate(); 
-            spawnEnemies(); 
-        };
-        openShopBtn.onclick = () => { 
-            shopModal.classList.remove('hidden'); 
-            shopGoldDisplay.innerText = totalGold;
-            isFiring = false;
-        };
+        startGameBtn.onclick = () => { initAudio(); modalEl.classList.add('hidden'); init(); animate(); spawnEnemies(); };
+        openShopBtn.onclick = () => { shopModal.classList.remove('hidden'); shopGoldDisplay.innerText = totalGold; isFiring = false; };
         closeShopBtn.onclick = () => shopModal.classList.add('hidden');
-        
-        muteBtn.onclick = () => {
-            isMuted = !isMuted;
-            muteBtn.innerText = isMuted ? '🔇' : '🔊';
-            if(masterGain) masterGain.gain.value = isMuted ? 0 : 0.4;
-        };
-
+        muteBtn.onclick = () => { isMuted = !isMuted; muteBtn.innerText = isMuted ? '🔇' : '🔊'; if(masterGain) masterGain.gain.value = isMuted ? 0 : 0.4; };
         window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; createStars(); };
     </script>
 </body>
